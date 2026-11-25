@@ -1,0 +1,22 @@
+{
+  "schema": "worldreforge.public_artifacts.v1",
+  "status": "publication_in_progress",
+  "model": {
+    "name": "Cosmos3 Nano WorldReforge",
+    "step": 4000,
+    "status": "available",
+    "download_url": "https://huggingface.co/WorldReforge/Cosmos3-Nano-WorldReforge"
+  },
+  "evaluation": {
+    "manifest": "eval1200.jsonl",
+    "windows": 1200,
+    "domains": {
+      "sim": 1200
+    },
+    "status": "uploading",
+    "download_url": "https://huggingface.co/datasets/WorldReforge/Reforge-Eval"
+  },
+  "training_code_included": false,
+  "training_data_included": false,
+  "other_model_checkpoints_included": false
+}

@@ -1,0 +1,28 @@
+{
+  "schema": "cosim.eval.motion_policy.v3",
+  "version": "canvas_pixel20_20261111_v001",
+  "coordinate_system": "native640_full_canvas_pixel_xy",
+  "canvas_hw": [544, 640],
+  "motion_unit": "pixel",
+  "normalization": "none",
+  "display_multiplier": 1,
+  "camera_bounds_xyxy": {
+    "wrist_cam": [0, 0, 640, 363],
+    "over_shoulder_left_camera": [0, 363, 323, 544],
+    "over_shoulder_right_camera": [323, 363, 640, 544]
+  },
+  "query_point_maxima": {
+    "wrist_cam": {"object": 6, "left_gripper": 3, "right_gripper": 3},
+    "over_shoulder_left_camera": {"object": 2, "left_gripper": 1, "right_gripper": 1},
+    "over_shoulder_right_camera": {"object": 2, "left_gripper": 1, "right_gripper": 1}
+  },
+  "total_maximum": 20,
+  "query_selection": "existing_GT_first_frame_visible_prediction_independent",
+  "mask": "existing_GT_visibility_and_own_camera_support; predicted_visibility_does_not_mask_errors",
+  "future_frames": [1, 16],
+  "fixed_FDE_frame": 16,
+  "point_aggregation": "equal_visible_points_within_entity_on_full_canvas_each_frame; no_camera_or_finger_reweighting",
+  "frame_aggregation": "ADE_equal_valid_future_frames; FDE_only_frame16_no_fallback",
+  "video_aggregation": "equal_videos_with_valid_reference; explicit_denominators",
+  "balanced_aggregation": "equal_object_and_gripper_per_video; require_both_entities"
+}
