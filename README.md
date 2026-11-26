@@ -13,7 +13,7 @@
   Liyang Li<sup>1</sup>,
   Guangyu Huang<sup>1</sup>,
   Canyu Zhao<sup>1</sup>,
-  Jin-Chuan Shi<sup>1</sup>,<br>
+  Jinchuan Shi<sup>1</sup>,<br>
   Haokai&nbsp;Zhang<sup>1</sup>,
   Hao Chen<sup>1,†</sup>,
   Chunhua Shen<sup>1,†</sup>
