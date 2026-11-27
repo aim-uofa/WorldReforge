@@ -2,10 +2,12 @@
   <img src="assets/worldreforge.png" alt="WorldReforge logo and wordmark" width="500">
 </p>
 
-<h3 align="center">
-  Beyond the Happy Path:<br>
-  Generalizing Robot World Models from Simulated Failures
-</h3>
+<ul align="center" type="none">
+  <li><summary><h2>
+    Beyond the Happy Path:<br>
+    Generalizing Robot World Models from Simulated Failures
+  </h2></summary></li>
+</ul>
 
 <p align="center">
   Zhiyue Zhao<sup>1,2,*</sup>,
