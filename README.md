@@ -126,21 +126,15 @@ only the tokenizer files are needed, not Qwen model weights.
 
 ### Evaluation
 
-Run inference and evaluation on one GPU from the repository root:
+With the files arranged as above, run WorldReforge inference and evaluation from the repository root:
 
 ```bash
-bash scripts/evaluate.sh \
-  --manifest manifests/eval1200.jsonl --data-root data/reforge-eval \
-  --checkpoint models/nano-worldreforge --tokenizer models/Wan2.2_VAE.pth \
-  --text-tokenizer models/Qwen3-VL-8B-Instruct-tokenizer \
-  --tracker-repository third_party/co-tracker \
-  --tracker-checkpoint models/cotracker3_offline.pth \
-  --gpu 0 --batch-size 1 --cpu-workers 8 --output outputs/reforge-eval
+bash scripts/evaluate.sh
 ```
 
-`--gpu` selects a device within `CUDA_VISIBLE_DEVICES`; `--cpu-workers` sets scoring
-parallelism. Increase `--batch-size` if memory permits, and use a fresh `--output` directory.
-For image metrics only, add `--pixels-only` and omit the tracker arguments.
+Defaults are GPU 0, batch size 1, and 8 CPU scoring workers. Append CLI flags to
+override paths or settings. For example, `bash scripts/evaluate.sh --gpu 1 --output outputs/run-2`
+selects the second visible GPU and a fresh output directory. Use `--pixels-only` to skip tracking.
 
 Metrics include object/gripper ADE and FDE, PSNR, SSIM, and pixel errors;
 see [Evaluation metrics](docs/evaluation.md) for definitions and aggregation.
@@ -157,11 +151,7 @@ The run writes `COMPLETE.json` after validation, or stops with `FAILED.json` on 
 **Original Nano baseline.** Generate predictions with the pretrained checkpoint:
 
 ```bash
-bash scripts/infer_original.sh \
-  --manifest manifests/eval1200.jsonl --data-root data/reforge-eval \
-  --tokenizer models/Wan2.2_VAE.pth \
-  --text-tokenizer models/Qwen3-VL-8B-Instruct-tokenizer \
-  --gpu 0 --batch-size 1 --output outputs/nano-original/inference
+bash scripts/infer_original.sh
 ```
 
 This inference-only shortcut defaults to `models/Cosmos3-Nano/` and uses the same

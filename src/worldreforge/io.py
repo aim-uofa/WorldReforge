@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
 import json
 import os
 import tempfile
@@ -22,7 +23,6 @@ def contained(root, relative):
 
 
 def output_path(path):
-
     path = Path(path).resolve()
     env = "COSIM_RESULTS_ROOT"
     if os.environ.get(env) and not path.is_relative_to(Path(os.environ[env]).resolve()):
@@ -30,37 +30,34 @@ def output_path(path):
     return path
 
 
-def atomic_json(path, value):
+@contextmanager
+def atomic_file(path, mode="wb", **options):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile(mode="w", dir=path.parent, prefix=".partial-",
-                                     encoding="utf-8", delete=False) as stream:
-        temporary = Path(stream.name)
-        try:
-            json.dump(value, stream, ensure_ascii=False, indent=2, allow_nan=False)
-            stream.write("\n")
+    stream = tempfile.NamedTemporaryFile(mode=mode, dir=path.parent, prefix=".partial-",
+                                         delete=False, **options)
+    try:
+        with stream:
+            yield stream
             stream.flush()
             os.fsync(stream.fileno())
-        except BaseException:
-            temporary.unlink(missing_ok=True)
-            raise
-    os.replace(temporary, path)
+        os.replace(stream.name, path)
+    except BaseException:
+        Path(stream.name).unlink(missing_ok=True)
+        raise
+
+
+def atomic_json(path, value):
+    with atomic_file(path, "w", encoding="utf-8") as stream:
+        json.dump(value, stream, ensure_ascii=False, indent=2, allow_nan=False)
+        stream.write("\n")
 
 
 def atomic_array(path, array):
     import numpy as np
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile(dir=path.parent, prefix=".partial-", delete=False) as stream:
-        temporary = Path(stream.name)
-        try:
-            np.save(stream, array, allow_pickle=False)
-            stream.flush()
-            os.fsync(stream.fileno())
-        except BaseException:
-            temporary.unlink(missing_ok=True)
-            raise
-    os.replace(temporary, path)
+
+    with atomic_file(path) as stream:
+        np.save(stream, array, allow_pickle=False)
 
 
 def checked_file(root, reference):

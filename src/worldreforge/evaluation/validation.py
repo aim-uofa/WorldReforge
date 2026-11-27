@@ -5,7 +5,7 @@ from pathlib import Path
 
 from worldreforge.io import atomic_json, output_path, read_json
 from worldreforge.evaluation.motion import METRICS
-from worldreforge.evaluation.pixels import aggregate_videos
+from worldreforge.evaluation.pixels import summarize_cases
 
 
 def require(condition, message):
@@ -31,7 +31,7 @@ def equal_tree(actual, expected, location="summary"):
             equal_tree(actual[key], expected[key], f"{location}.{key}")
     elif isinstance(expected, float):
         require(isinstance(actual, (int, float)) and not isinstance(actual, bool)
-                and math.isfinite(actual) and math.isclose(actual, expected, rel_tol=1e-12, abs_tol=1e-12),
+                and math.isclose(actual, expected, rel_tol=1e-12, abs_tol=1e-12),
                 f"Numeric aggregate differs: {location}")
     else:
         require(actual == expected and type(actual) is type(expected), f"Value differs: {location}")
@@ -47,7 +47,6 @@ def check_motion(entity, measured):
     require(n <= 10 and possible == n * 16, "Point quota or possible-pair denominator changed")
     require(0 <= frames <= 16 and frames <= pairs <= frames * n and terminal <= n and terminal <= pairs,
             "Inconsistent visible point/frame counts")
-    require(not terminal or frames > 0, "Terminal support without a valid future frame")
     require(entity["windows_with_ade"] == int(frames > 0) and
             entity["windows_with_fde"] == int(terminal > 0), "Motion valid-video counts differ")
     if not measured:
@@ -66,6 +65,37 @@ def check_motion(entity, measured):
             "Invalid prediction visibility diagnostic")
 
 
+def check_pixels(pixels):
+    require(pixels["frames_scored"] == 16, "Expected 16 future frames")
+    for name in ("mse", "ssim", "psnr_db", "static_mse", "static_psnr_db", "temporal_difference_mse"):
+        require(type(pixels[name]) in (int, float), f"Missing/nonfinite {name}")
+    require(-1 <= pixels["ssim"] <= 1, "SSIM outside [-1,1]")
+    for name in ("mse", "roi_mse", "static_mse"):
+        value = pixels[name]
+        if value is not None:
+            require(0 <= value <= 1, f"Invalid normalized {name}")
+        expected = -10 * math.log10(max(value, 1e-15)) if value is not None else None
+        equal_tree(pixels[name.replace("mse", "psnr_db")], expected, name + "_to_PSNR")
+    require(pixels["temporal_difference_mse"] >= 0, "Negative temporal error")
+
+
+def check_case(row, result, pixels_only):
+    finite_tree(result)
+    for key in ("id", "domain", "panel", "asset"):
+        require(result.get(key) == row.get(key), f"Case metadata changed: {row['id']}/{key}")
+    check_pixels(result["pixels"])
+    measured = bool(row.get("points")) and not pixels_only
+    status = "explicitly_skipped" if pixels_only else ("scored" if measured else "no_qualified_reference")
+    require(result["motion_status"] == status and result["motion"]["unit"] == "pixel",
+            "Motion status or unit changed")
+    for entity in ("object", "gripper"):
+        check_motion(result["motion"][entity], measured)
+    for key in METRICS:
+        a, b = result["motion"]["object"][key], result["motion"]["gripper"][key]
+        equal_tree(result["motion"]["balanced"][key], (a + b) / 2 if a is not None and b is not None else None,
+                   "balanced." + key)
+
+
 def validate_results(rows, metrics_root, output, *, pixels_only=False):
     output = output_path(output)
     require(not output.exists(), "Validation output already exists; select a new output")
@@ -77,47 +107,16 @@ def validate_results(rows, metrics_root, output, *, pixels_only=False):
         require(complete["status"] == "passed" and complete["windows"] == len(ids)
                 and complete["ids"] == ids and complete["pixels_only"] is pixels_only,
                 "Scoring completion/member protocol differs")
-        files = list((metrics_root / "cases").glob("*.json"))
+        files = (metrics_root / "cases").glob("*.json")
         require({p.stem for p in files} == set(ids), "Missing or extra per-video metrics")
         results = []
         for row in rows:
             cid = row["id"]
             path = metrics_root / "cases" / f"{cid}.json"
             result = read_json(path)
-            finite_tree(result)
-            for key in ("id", "domain", "panel", "asset"):
-                require(result.get(key) == row.get(key), f"Case metadata changed: {cid}/{key}")
-            pixels = result["pixels"]
-            require(pixels["frames_scored"] == 16, "Expected 16 future frames")
-            for name in ("mse", "ssim", "psnr_db", "static_mse", "static_psnr_db", "temporal_difference_mse"):
-                require(type(pixels[name]) in (int, float) and math.isfinite(pixels[name]), f"Missing/nonfinite {name}")
-            require(-1 <= pixels["ssim"] <= 1, "SSIM outside [-1,1]")
-            for name in ("mse", "roi_mse", "static_mse"):
-                value = pixels[name]
-                if value is not None:
-                    require(0 <= value <= 1, f"Invalid normalized {name}")
-                expected = -10 * math.log10(max(value, 1e-15)) if value is not None else None
-                equal_tree(pixels[name.replace("mse", "psnr_db")], expected, name + "_to_PSNR")
-            require(pixels["temporal_difference_mse"] >= 0, "Negative temporal error")
-            measured = bool(row.get("points")) and not pixels_only
-            status = "explicitly_skipped" if pixels_only else ("scored" if measured else "no_qualified_reference")
-            require(result["motion_status"] == status and result["motion"]["unit"] == "pixel",
-                    "Motion status or unit changed")
-            for entity in ("object", "gripper"):
-                check_motion(result["motion"][entity], measured)
-            for key in METRICS:
-                a, b = result["motion"]["object"][key], result["motion"]["gripper"][key]
-                equal_tree(result["motion"]["balanced"][key], (a + b) / 2 if a is not None and b is not None else None,
-                           "balanced." + key)
+            check_case(row, result, pixels_only)
             results.append(result)
-        groups = {"all": results}
-        for key in ("domain", "panel"):
-            for value in sorted({r[key] for r in results}):
-                groups[f"{key}:{value}"] = [r for r in results if r[key] == value]
-        expected = {k: aggregate_videos(v) for k, v in groups.items()}
-        summary = read_json(metrics_root / "summary.json")
-        finite_tree(summary)
-        equal_tree(summary, expected)
+        equal_tree(read_json(metrics_root / "summary.json"), summarize_cases(results))
         report = dict(status="passed", windows=len(results), pixels_only=pixels_only,
                       motion_reference_windows=sum(bool(r.get("points")) and not pixels_only for r in rows),
                       execution_status="passed", scientific_status="not_inferred_by_integrity_checks")

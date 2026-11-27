@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-import os
-import tempfile
 import numpy as np
 
-from worldreforge.io import atomic_json, checked_file, output_path, read_json
+from worldreforge.io import atomic_file, atomic_json, checked_file, output_path, read_json
 from worldreforge.evaluation.predictions import load_prediction
 from worldreforge.runtime import bind_gpu, configure_storage
 
@@ -27,10 +25,8 @@ def track(rows, data_root, prediction_root, repository, checkpoint, output, gpu=
                 xy, vis = track_video(model, prediction, points)
                 folder = out / row["id"]
                 folder.mkdir()
-                with tempfile.NamedTemporaryFile(dir=folder, delete=False) as stream:
-                    temporary = stream.name
+                with atomic_file(folder / "tracks.npz") as stream:
                     np.savez_compressed(stream, tracks=xy, visibility=vis, point_ids=np.asarray([p["id"] for p in points]))
-                os.replace(temporary, folder / "tracks.npz")
                 atomic_json(folder / "COMPLETE.json", dict(id=row["id"], status="passed"))
                 ids.append(row["id"])
         receipt = dict(status="passed", windows=len(ids), ids=ids)

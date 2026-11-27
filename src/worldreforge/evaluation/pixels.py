@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import defaultdict
 import math
 import numpy as np
 from skimage.metrics import structural_similarity
@@ -57,7 +58,6 @@ def score_pixels(prediction, gt, boxes=None):
 
 
 def aggregate_videos(rows):
-
     flat = []
     for row in rows:
         item = dict(row["pixels"])
@@ -69,3 +69,13 @@ def aggregate_videos(rows):
     return {"videos": len(rows), "metrics": {
         k: {"mean": mean(r.get(k) for r in flat),
             "valid_videos": sum(r.get(k) is not None for r in flat)} for k in keys if k != "frames_scored"}}
+
+def summarize_cases(cases):
+    groups = defaultdict(list)
+    for case in cases:
+        for field in ("domain", "panel"):
+            groups[f"{field}:{case[field]}"].append(case)
+    return {
+        "all": aggregate_videos(cases),
+        **{name: aggregate_videos(group) for name, group in sorted(groups.items())},
+    }
